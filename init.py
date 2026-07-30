@@ -1,4 +1,5 @@
-'''1st time here?
+'''1st time here or just a long time ago?
+
 :2nd terminal:
 $ python -m http.server
 
