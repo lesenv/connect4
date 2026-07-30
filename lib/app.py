@@ -32,15 +32,30 @@ async def handler(websocket):
         message_dict = json.loads(message)
         if message_dict["type"] == "play":
             game.play(active_player, message_dict["column"])
-            event = {"type": "play"}
             pl, col, row = game.moves[-1]
-            event["player"] = pl
-            event["column"] = col
-            event["row"] = row
-            await websocket.send(json.dumps(event))
+            event = {
+                "type": "play",
+                "player": pl,
+                "column": col,
+                "row": row
+                }
+            try:
+                await websocket.send(json.dumps(event))
+            except ValueError as e:
+                event_error = {
+                    "type": "error",
+                    "msg": e
+                }
+                await websocket.send(json.dumps(event_error))
+            if game.winner:
+                event_won = {
+                    "type": "win",
+                    "player": game.winner
+                }
+                await websocket.send(json.dumps(event_won))
             active_player = change_player[active_player]
         elif message_dict["win"] == "log":
-            logger.debug(message_dict["txt"])
+            logger.info(message_dict["txt"])
 
 async def main():
     logger.debug("> MAIN")
