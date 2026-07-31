@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-
 import asyncio
 import json
+from itertools import cycle as iter_cycle
+
 from websockets.asyncio.server import serve
 from connect4 import Connect4, PLAYER1, PLAYER2
 
@@ -9,7 +10,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.DEBUG)
+# when needed, back to DEBUG (change from INFO)
+stream_handler.setLevel(logging.INFO)
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s',
                     handlers=[stream_handler])
@@ -20,18 +22,24 @@ logging.basicConfig(level=logging.DEBUG,
 async def handler(websocket):
     logger.debug(">> in handler")
     game = Connect4()
-    active_player = PLAYER1
-    change_player = {
-        PLAYER1: PLAYER2,
-        PLAYER2: PLAYER1
-    }
+    players = iter_cycle([PLAYER1, PLAYER2])
+    active_player = next(players)
 
     async for message in websocket:
         logger.debug(f"\n>>> message in handler")
         logger.debug(message)
         message_dict = json.loads(message)
         if message_dict["type"] == "play":
-            game.play(active_player, message_dict["column"])
+            try:
+                game.play(active_player, message_dict["column"])
+            except ValueError as e:
+                event_error = {
+                    "type": "error",
+                    "message": str(e)
+                }
+                await websocket.send(json.dumps(event_error))
+                continue
+
             pl, col, row = game.moves[-1]
             event = {
                 "type": "play",
@@ -39,21 +47,14 @@ async def handler(websocket):
                 "column": col,
                 "row": row
                 }
-            try:
-                await websocket.send(json.dumps(event))
-            except ValueError as e:
-                event_error = {
-                    "type": "error",
-                    "msg": e
-                }
-                await websocket.send(json.dumps(event_error))
+            await websocket.send(json.dumps(event))
             if game.winner:
                 event_won = {
                     "type": "win",
                     "player": game.winner
                 }
                 await websocket.send(json.dumps(event_won))
-            active_player = change_player[active_player]
+            active_player = next(players)
         elif message_dict["win"] == "log":
             logger.info(message_dict["txt"])
 
