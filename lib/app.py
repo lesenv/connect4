@@ -16,12 +16,11 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s',
                     handlers=[stream_handler])
 
-
-
-
 async def handler(websocket):
     logger.debug(">> in handler")
+    # new Game-instance of Connect4
     game = Connect4()
+    # gather the players
     players = iter_cycle([PLAYER1, PLAYER2])
     active_player = next(players)
 
